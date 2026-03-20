@@ -32,23 +32,31 @@ def fetch_metrics(instance_id, metric):
     return f"{metric} for {instance_id}: {random.randint(70, 99)}%"
 
 def search_past_incidents(query):
+    """
+    Structured tool call: searches historical incident store by keyword
+    relevance scoring. Returns top 2 most relevant past incidents.
+    """
     print(f"[TOOL] search_past_incidents called: query={query}")
-    query_lower = query.lower()
-    results = []
+    query_words = query.lower().split()
+    scored = []
     for incident in PAST_INCIDENTS:
-        if any(word in incident["alarm"].lower() or 
-               word in incident["root_cause"].lower() 
-               for word in query_lower.split()):
-            results.append(incident)
-    if results:
-        output = []
-        for r in results[:2]:
-            output.append(f"Past incident: {r['alarm']}")
-            output.append(f"Root cause: {r['root_cause']}")
-            output.append(f"Fix applied: {r['fix']}")
-            output.append("---")
-        return "\n".join(output)
-    return "No similar past incidents found."
+        score = 0
+        text = (incident["alarm"] + " " + incident["root_cause"]).lower()
+        for word in query_words:
+            if word in text:
+                score += 1
+        if score > 0:
+            scored.append((score, incident))
+    scored.sort(reverse=True, key=lambda x: x[0])
+    if not scored:
+        return "No similar past incidents found."
+    output = []
+    for score, r in scored[:2]:
+        output.append(f"Past incident: {r['alarm']}")
+        output.append(f"Root cause: {r['root_cause']}")
+        output.append(f"Fix applied: {r['fix']}")
+        output.append("---")
+    return "\n".join(output)
 
 def post_slack(message):
     print("\n" + "="*60)
